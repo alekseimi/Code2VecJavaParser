@@ -7,10 +7,12 @@ import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
-public class IfStmtVisitor extends VoidVisitorAdapter<Void> {
+import java.util.List;
 
-    public void visit (IfStmt ifstmt, Void arg){
-        super.visit(ifstmt, arg);
-        System.out.println(ifstmt);
+public class IfStmtVisitor extends VoidVisitorAdapter<List<Integer>> {
+
+    public void visit(IfStmt ifstmt, List<Integer> ifCount) {
+        super.visit(ifstmt, ifCount);
+        ifCount.add(1);
     }
 }

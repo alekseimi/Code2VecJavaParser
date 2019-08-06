@@ -4,16 +4,15 @@ public class MethodData {
 
     private String projectName;
 
-    private String name;
+    private String fileName;
 
-    private String type;
+    private String accessType;
 
     private int sizeInSloc;
 
     private int ifBlockCount;
 
     private int forBlockCount;
-
 
     public int getSizeInSloc() {
         return sizeInSloc;
@@ -23,20 +22,20 @@ public class MethodData {
         this.sizeInSloc = sizeInSloc;
     }
 
-    public String getType() {
-        return type;
+    public String getAccessType() {
+        return accessType;
     }
 
-    public void setType(String type) {
-        this.type = type;
+    public void setAccessType(String type) {
+        this.accessType = accessType;
     }
 
-    public String getName() {
-        return name;
+    public String getFileName() {
+        return fileName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
     public int getIfBlockCount() {
