@@ -1,100 +1,166 @@
-import Visitors.ForStmtVisitor;
-import Visitors.IfStmtVisitor;
-import com.github.javaparser.JavaParser;
-import com.github.javaparser.ParseException;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.TypeParameter;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.TypeDeclaration;
-import com.github.javaparser.ast.stmt.ForStmt;
-import com.github.javaparser.ast.visitor.VoidVisitor;
+import Entity.Common;
 
-import javax.lang.model.element.Modifier;
-import java.io.File;
+import Entity.MethodData;
+import Util.CSVUtil;
+import com.github.javaparser.ParseException;
+
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 
 
-/*
-TODO:
-
- */
-
 public class Entry {
 
+    static List<MethodData> methodDataList = new ArrayList<>();
+
     public static void main(String[] args) {
-        String filePath = "C:\\Users\\Aleksej\\Documents\\ita-springboot-project\\src\\main\\java\\ita\\springboot\\application\\web\\MainController.java";
-        File projectFile = new File(filePath);
+
+        /* --MAIN CONTENT
+        String testFilePath = "E:\\Program Files\\commons-lang-master\\src\\main\\java\\org\\apache\\commons\\lang3\\tuple\\Pair.java";
+        parseFile(testFilePath, "project");
+        System.out.println(methodDataList);
+
+
+        String csvTestPath = "E:\\Šola\\code2vec\\apache_commons.csv";
+        List<String> listOfiles = CSVUtil.readCSV(csvTestPath);
+        for (String file : listOfiles) {
+            parseFile(file, "apache_commons");
+        }
+
+        CSVUtil.dumpToCsv(methodDataList, "test.csv");
+        System.out.println(methodDataList);
+
+         */
+
+
+        String csvPath = "E:\\Šola\\code2vec\\apache_commons.csv";
+        List<String> listOfProjectFiles = CSVUtil.readCSV(csvPath);
+
+
+        String testFilePath = "E:\\Program Files\\commons-lang-master\\src\\main\\java\\org\\apache\\commons\\lang3\\tuple\\Pair.java";
+        String projectName = "apache_commons";
 
         try {
+            for (String file : listOfProjectFiles) {
+                Path filePath = Paths.get(file);
+                String code = extractSingleFile(filePath);
+                FeatureExtractor featureExtractor = new FeatureExtractor();
+                List<MethodData> classList = featureExtractor.extractFeatures(code, projectName);
+                System.out.println("File: " + file + " size:" + classList.size());
+                methodDataList.addAll(classList);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println(methodDataList.size());
+        CSVUtil.dumpToCsv(methodDataList, "csv_dump.csv");
+
+    }
+
+    public static String extractSingleFile(Path filePath) {
+        String code;
+        try {
+            code = new String(Files.readAllBytes(filePath));
+            return code;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+
+
+
+
+
+
+
+    /*
+
+
+
+    public static void parseFile(String filePath, String projectName) {
+        try {
+            File projectFile = new File(filePath);
             CompilationUnit compilationUnit = JavaParser.parse(projectFile);
-            List<TypeDeclaration> typeDeclarationList = compilationUnit.getTypes();
-            for (TypeDeclaration typeDeclaration : typeDeclarationList) {
+            for (TypeDeclaration typeDeclaration : compilationUnit.getTypes()) {
                 if (typeDeclaration instanceof ClassOrInterfaceDeclaration) {
                     if (!((ClassOrInterfaceDeclaration) typeDeclaration).isInterface()) {
-                        List<Node> classNodeList = typeDeclaration.getChildrenNodes();
-                        parseMethods(classNodeList, typeDeclaration.getName());
+                        List<Node> classNodeList = typeDeclaration.getChildNodes();
+                        parseMethods(classNodeList, typeDeclaration.getName(), projectFile.getName(), projectName);
                     }
                 }
             }
-        } catch (ParseException | IOException e) {
+        } catch (IOException e) {
             System.err.println(e.getLocalizedMessage());
         }
     }
 
-    public static void parseMethods(List<Node> nodeList, String className) {
+    public static void parseMethods(List<Node> nodeList, SimpleName className, String fileName, String projectName) {
         for (Node node : nodeList) {
             if (node.getClass() == MethodDeclaration.class) {
-                //ifstmt count
-                VoidVisitor<List<Integer>> ifStmtVisitor = new IfStmtVisitor();
-                List<Integer> ifStmtList = new ArrayList<>();
-                ifStmtVisitor.visit((MethodDeclaration) node, ifStmtList);
-                //forstmt count
-                VoidVisitor<List<Integer>> forStmtVisitor = new ForStmtVisitor();
-                List<Integer> forStmtList = new ArrayList<>();
-                forStmtVisitor.visit((MethodDeclaration) node, forStmtList);
-                //lineCount
-                int slocCount = node.getEndLine() - node.getBeginLine();
-                System.out.println(slocCount);
-                //accessType
-                int modifier = ((MethodDeclaration) node).getModifiers();
-                String stringModifier = java.lang.reflect.Modifier.toString(modifier);
-                System.out.println(stringModifier);
+                if (!((MethodDeclaration) node).getType().equals(className)) {
+                    MethodData methodData = new MethodData();
 
+                    //ifstmt count
+                    VoidVisitor<List<Integer>> ifStmtVisitor = new IfStmtVisitor();
+                    List<Integer> ifStmtList = new ArrayList<>();
+                    ifStmtVisitor.visit((MethodDeclaration) node, ifStmtList);
+                    methodData.setIfBlockCount(ifStmtList.size());
+
+                    //forstmt count
+                    VoidVisitor<List<Integer>> forStmtVisitor = new ForStmtVisitor();
+                    List<Integer> forStmtList = new ArrayList<>();
+                    forStmtVisitor.visit((MethodDeclaration) node, forStmtList);
+                    methodData.setForBlockCount(forStmtList.size());
+
+                    //lineCount
+                    int slocCount = node.getEnd().get().line - node.getBegin().get().line;
+                    if (slocCount == 0) {
+                        continue;
+                    }
+                    methodData.setSizeInSloc(slocCount);
+
+                    //accessType
+                    EnumSet enumSetList = ((MethodDeclaration) node).getModifiers();
+                    String modifier = extractModifier(enumSetList);
+                    methodData.setAccessType(modifier);
+                    //fileName
+                    methodData.setFileName(fileName);
+
+                    //projectName
+                    methodData.setProjectName(projectName);
+
+                    //methodName
+                    methodData.setMethodName(((MethodDeclaration) node).getName().asString());
+                    methodDataList.add(methodData);
+                    //}
+                } else if (node.getClass() == ClassOrInterfaceDeclaration.class) {
+                    if (!((ClassOrInterfaceDeclaration) node).isInterface()) {
+                        parseMethods(node.getChildNodes(), className, fileName, projectName);
+                    }
+                }
             }
         }
     }
-}
 
+    public static String extractModifier(EnumSet enumSet) {
+        String returnValue = "null";
 
-/*
-private void getParameterNames(MethodDeclaration methodDeclaration, boolean isInterface) {
-  final EnumSet<Modifier> modifiers = methodDeclaration.getModifiers();
-  if (isInterface || modifiers.contains(Modifier.PUBLIC)) {
-    String methodName = methodDeclaration.getName().getIdentifier();
-    List<Parameter> parameters = methodDeclaration.getParameters();
-    names.className = this.className;
-    List<List<ParameterName>> parameterNames =
-        names.names.computeIfAbsent(methodName, k -> new ArrayList<>(4));
-
-    final List<ParameterName> temp = new ArrayList<>();
-    for (final Parameter parameter : parameters) {
-      ParameterName parameterName = new ParameterName();
-      String type = parameter.getType().toString();
-      String name = parameter.getName().getIdentifier();
-      if (name.contains("[]")) {
-        type = type + "[]";
-        name = name.replace("[]", "");
-      }
-      parameterName.type = type;
-      parameterName.name = name;
-      temp.add(parameterName);
+        if (enumSet.contains(PRIVATE)) {
+            returnValue = "private";
+        } else if (enumSet.contains(PUBLIC)) {
+            returnValue = "public";
+        } else if (enumSet.contains(PROTECTED)) {
+            returnValue = "protected";
+        }
+        return returnValue;
     }
-    parameterNames.add(temp);
-  }
+
+     */
 }
- */
+
